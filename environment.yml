@@ -1,0 +1,12 @@
+# Starter environment: edit the package list to match the Labs.
+name: atse
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - pandas
+  - matplotlib
+  - statsmodels
+  - jupyter
+  - pip

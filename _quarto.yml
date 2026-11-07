@@ -1,0 +1,44 @@
+project:
+  type: website
+  output-dir: docs
+  render:
+    - index.qmd
+    - "chapters/**/*.qmd"
+    - "typst/**/*.qmd"
+    - "labs/**/*.qmd"
+    - "labs/**/*.ipynb"
+    - "capstones/**/*.qmd"
+    - "resources/**/*.qmd"
+    - "setup/**/*.qmd"
+    - "!labs/**/*Draft*"
+  # slides/ is deliberately not rendered here: render each deck on its own
+  # and copy the HTML to docs/slides/.
+  post-render: scripts/copy-pdfs.sh
+
+execute:
+  freeze: auto        # re-run code only when a source file changes
+
+website:
+  title: "Applied Time Series Econometrics"
+  site-url: https://maarranz.github.io/ATSE/
+  repo-url: https://github.com/maarranz/ATSE
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: chapters/index.qmd
+        text: Chapters
+      - href: resources/index.qmd
+        text: Resources
+      - href: setup/index.qmd
+        text: Setup
+    right:
+      - icon: github
+        href: https://github.com/maarranz/ATSE
+
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-summary: "Show the code"
+    title-block-banner: true

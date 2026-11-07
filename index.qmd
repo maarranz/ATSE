@@ -1,0 +1,15 @@
+---
+title: "Applied Time Series Econometrics"
+---
+
+Self-study materials for the Applied Time Series Econometrics course at
+Universidad Carlos III de Madrid.
+
+## Course materials
+
+- **[Chapters](chapters/index.qmd)**: self-study handouts, in HTML and PDF.
+- **Slides**: the lecture decks.
+- **Labs**: hands-on sessions in R (Quarto) and Python (Google Colab).
+- **Capstone projects**: applied research projects.
+- **[Resources](resources/index.qmd)**: the course's Python and R packages and web apps.
+- **[Setup](setup/index.qmd)**: getting R, Python and the FRED API key working.

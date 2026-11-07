@@ -1,0 +1,23 @@
+---
+title: "Web applications"
+---
+
+Interactive apps for exploring the course models in the browser. No installation needed.
+Each link opens the app in a new tab.
+
+## ARMA Explorer
+
+Choose the coefficients of an ARMA model and see what they imply.
+
+[Open the ARMA Explorer](https://arma-theory-app.onrender.com/){target="_blank"}
+
+## ADL Explorer
+
+Choose the coefficients of an ADL model and see what they imply:
+stability, dynamic and cumulative effects, long-run effect, mean and median lags.
+
+[Open the ADL Explorer](https://adl-theory-app.onrender.com/){target="_blank"}
+
+::: {.callout-note}
+The apps may take up to a minute to load if nobody has used them recently.
+:::

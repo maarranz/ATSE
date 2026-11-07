@@ -1,0 +1,9 @@
+---
+title: "Resources"
+---
+
+Software written for this course. Each item lives in its own GitHub repository.
+
+- [Python packages](python/index.qmd)
+- [R packages](r/index.qmd)
+- [Web applications](apps/index.qmd)

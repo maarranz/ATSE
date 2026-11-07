@@ -1,0 +1,7 @@
+---
+title: "R packages"
+---
+
+Install from GitHub with `remotes::install_github("maarranz/<repository>")`.
+
+<!-- TODO: add ARIMA-Tools-R and any other R packages, with their repository names -->

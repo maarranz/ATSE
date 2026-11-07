@@ -1,0 +1,693 @@
+---
+title: "Forecasting with ARIMA Models"
+author: "Miguel A. Arranz"
+date: today
+date-format: long
+toc: true
+format: 
+    html:
+        code-fold: true
+        code-summary: "Show the code"
+        title-block-banner: true
+---
+
+
+# Introduction
+
+Once an ARIMA model has been identified and estimated, the natural next step is to use it to **forecast** future values of the series. This chapter develops the theory of optimal forecasting for ARIMA processes and works through it in detail.
+
+We proceed as follows:
+
+1. We first show that the same ARIMA model can be written in three equivalent ways — the **difference equation**, the **random shock** form, and the **inverted** form — and that each suggests a different, but equivalent, route to a forecast.
+2. We derive the **Minimum Mean Squared Error (MMSE)** predictor, show that it coincides with the conditional expectation, and characterize the properties of its forecast error (mean zero, growing variance, and correlation across horizons).
+3. We turn these general results into a small set of **practical rules** for computing $h$-step-ahead forecasts from any ARIMA($p,d,q$) model, and work through several fully solved examples — including the two cases you will meet most often in practice, $d=1$ and $d=2$.
+4. We treat forecasting a series in **levels** ($Y$) when the estimated model is written for its **differences** ($\Delta Y$), for both the point forecast and its confidence interval — this is the case you will run into whenever the identified model is integrated.
+5. We close with **forecast updating**: how a one-step-ahead forecast is revised once a new observation arrives. This recursive updating logic is the basis of **static forecasting**, which we will use extensively in Part 2 of this topic (forecast evaluation, encompassing, and forecast comparison), so it is worth understanding thoroughly here.
+
+A short note on notation: we use $a_t$ for the model's innovations throughout this chapter (rather than $\epsilon_t$, used elsewhere in the course), to avoid visual confusion with the forecast errors $e_t(h)$ that appear constantly below.
+
+# 3 Alternative Ways to Express the Model
+
+Model: $ARIMA(p,d,q): \quad \varphi(B) Y_t = \theta(B) a_t$
+
+## Difference Equation:
+
+$$
+Y_{t+h}  = \varphi_1 Y_{t+h-1} + \varphi_2 Y_{t+h-2} + \ldots + \varphi_{p+d} Y_{t+h-p-d} \\ + a_{t+h} - \theta_1 a_{t+h-1} - \ldots - \theta_q a_{t+h-q} \tag{1}
+$$
+
+## Random Shock
+
+$$
+Y_{t+h}  = a_{t+h} + \psi_1 a_{t+h-1} + \psi_2 a_{t+h-2} + \ldots \tag{2}$$
+
+## Inverted Form
+
+$$Y_{t+h}  = a_{t+h} + \pi_1 Y_{t+h-1} + \pi_2 Y_{t+h-2} + \ldots  \tag{3}$$
+
+# MMSE Predictors
+
+## MMSE Predictor of ARIMA Model
+
+Say you want at time $t$ to make a forecast of $Y_{t+h}$, $\hat{Y}_t(h)$, as a linear function of $Y_{t}, Y_{t-1}, Y_{t-2}, \ldots$. It would thus be a linear function of $a_{t}, a_{t-1}, a_{t-2}, \ldots$.
+
+Let's assume that the best predictor is
+
+$$
+\hat{Y}_t(h) = \psi_h^{\star} a_t + \psi_{h+1}^{\star} a_{t-1} + \psi_{h+2}^{\star} a_{t-2} + \ldots
+$$
+
+Remember that  $Y_{t+h} = \sum_{j=0}^{\infty} \psi_j a_{t+h-j}$.
+
+The MSE is
+
+$$
+\text{E}\left[ \left(Y_{t+h} - \hat{Y}_t(h) \right)^2 \right] = 
+\sigma^2_a \sum_{j=0}^{h-1} \psi_j^2 + 
+\sigma^2_a \sum_{j=1}^\infty \left(\psi_{h+j} - \psi^\star_{h+j} \right)^2
+$$
+and this is minimized when $\psi_j^\star = \psi_j$.
+
+The predictor is $\text{E}_t[Y_{t+h}] = \text{E}[Y_{t+h}|Y_{t},Y_{t-1}, Y_{t-2}, \ldots ]$
+
+## Properties
+
+$$
+\hat{Y}_{t}(h) = \psi_h a_t + \psi_{h+1} a_{t-1} + \psi_{h+2} a_{t-2} + \ldots = \text{E}_t [Y_{t+h}]  \tag{4}
+$$
+
+The forecast error $h$ periods ahead is
+
+$$
+e_t(h) = Y_{t+h} - \hat{Y}_t(h)
+\\ e_t(h)  = a_{t+h} + \psi_{1} a_{t+h-1} + \psi_{2} a_{t+h-2} + \ldots +\psi_{h-1} a_{t+1}
+$$
+
+$$
+\text{E}[e_t(h)] = 0
+\\ \text{V}[e_t(h)] = (1 + \psi_1^2 + \psi_2^2 + \ldots \psi_{h-1}^2) \sigma^2_a
+$$
+
+Assuming Asymptotic Normality, the confidence limits would be
+
+$$
+\hat{Y}_t(h) \pm z_{\alpha/2} \sqrt{V(e_t(h))}
+$$
+
+**Shocks are one-period ahead forecast errors**
+
+$$
+e_t(1) = Y_{t+1} - \hat{Y}_t(1) = a_{t+1}
+$$
+
+One-period ahead forecast errors must be uncorrelated. Otherwise, $a_{t+1}$ could be explained using $a_{t}, a_{t-1}, \ldots$, and adding that predictable part of $a_{t+1}$ to $\hat{Y}_t(1)$ would give a better predictor of $Y_{t+1}$ than $\hat{Y}_t(1)$ itself.
+
+**Correlation between forecast errors**
+
+$$
+\begin{aligned}
+e_t(h) = Y_{t+h} - \hat{Y}_t(h)  = a_{t+h} + \psi_1 a_{t+h-1} + \ldots + \psi_{h-1} a_{t+1}
+\\ e_{t-j}(h) = Y_{t+h-j} - \hat{Y}_{t-j}(h)  = a_{t+h-j}+ \psi_1 a_{t+h-j-1} + \ldots + \psi_{h-1} a_{t-j+1}
+\end{aligned}
+$$
+
+$$
+\text{Cov}[e_t(2), e_t(1)] = \text{E}[(a_{t+2}+\psi_1 a_{t+1})(a_{t+1})] = \psi_1 \sigma_a^{2}
+$$
+
+As a consequence, the prediction function will render values with a tendency to stay above or below the actual values.
+
+# Model Predictions
+
+## 3 ways to make predictions
+
+1. Equation in differences
+2. Integrated formula
+3. Weighted average of past values and predictions with different horizons at the same origin.
+
+## Difference Equation
+
+Taking conditional expectations in (1)
+
+$$
+Y_{t+h}  = \varphi_1 Y_{t+h-1} + \varphi_2 Y_{t+h-2} + \ldots + \varphi_{p+d} Y_{t+h-p-d} \\ + a_{t+h} - \theta_1 a_{t+h-1} - \ldots - \theta_q a_{t+h-q} \tag{1}
+$$
+
+$$
+[Y_{t+h}]  = \hat{Y}_t(h) = \varphi_1 [Y_{t+h-1}] + \varphi_2 [Y_{t+h-2}] + \ldots + \varphi_{p+d} [Y_{t+h-p-d}] 
+\\  - \theta_1 [a_{t+h-1}] - \ldots - \theta_q [a_{t+h-q}] + [a_{t+h}]
+\tag{5}
+$$
+
+## Integrated Form
+
+Using equation (2)
+
+$$
+Y_{t+h}  = a_{t+h} + \psi_1 a_{t+h-1} + \psi_2 a_{t+h-2} + \ldots \tag{2}$$
+
+$$
+[Y_{t+h}] =\hat{Y}_t(h) = [a_{t+h}] + \psi_1 [a_{t+h-1}] + \ldots +\psi_{h-1} [a_{t+1}] 
+\\  +\psi_h [a_{t}] + \psi_{h+1} [a_{t-1}] + \ldots \tag{6}
+$$
+
+## Weighted Average
+
+Using equation (3)
+
+$$Y_{t+h}  = a_{t+h} + \pi_1 Y_{t+h-1} + \pi_2 Y_{t+h-2} + \ldots  \tag{3}$$
+
+$$
+[Y_{t+h}]  = \hat{Y}_t(h) = [a_{t+h}] + \pi_1 [Y_{t+h-1}] + \pi_2 [Y_{t+h-2}] + \ldots \tag{7}
+$$
+
+# Calculating the Forecasts
+
+$$[Y_{t+h}]=\text{E}_t(Y_{t+h})=\text{E}(Y_{t+h}|Y_t, Y_{t-1}, \ldots)$$
+
+In theory, we need all the values of $Y$, up to the infinite past. However, if the process is **invertible** we need a finite number of weights in expression (7), given that $\pi$'s sequence converges.
+
+In fact, we need a finite number of past values of $Y$ whatever the 3 methods we use, $Y_t, Y_{t-1}, \ldots, Y_{t-k}$.
+
+$$
+[Y_{t-j}]  = \text{E}_t(Y_{t-j}) = Y_{t-j}  \qquad    j =0, 1, 2, \ldots 
+$$
+
+$$
+[Y_{t+j}] =   \text{E}_t(Y_{t+j}) = \hat{Y}_{t}(j)  \qquad  j =1, 2, \ldots
+$$
+
+$$
+[a_{t-j}]  = \text{E}_t(a_{t-j}) = Y_{t-j}-\hat{Y}_{t-j-1}(1)  \qquad  j =0, 1, 2, \ldots
+$$
+
+$$
+\text{E}_t(a_{t+j}) = 0 \qquad  j =1, 2, \ldots
+$$
+
+To obtain $\hat{Y}_{t}(h)$, we must write the model for $Y_{t+h}$ and remember the following rules:
+
+1. The values of $Y_{t-j}, (j=0,1,2,\ldots)$, which have **already happened**, remain **unchanged**.
+2. The values of $Y_{t+j}, (j=1,2,\ldots)$, which have **not happened yet**, are replaced by $\hat{Y}_t(j)$.
+3. The values of $a_{t-j}, (j =0, 1, 2, \ldots )$, which have **already happened** are obtained via the **one-step-ahead forecast errors**, $Y_{t-j}-\hat{Y}_{t-j-1}(1)$.
+4. The values of $a_{t+j}, (j=1,2,\ldots)$, which have **not happened yet**, are replaced by their **expected values**, which are **zero**.
+
+## A Recursive Computation
+
+In practice, the most convenient way to compute forecasts is to apply the difference equation (5) recursively
+
+$$
+\hat{Y}_t(h) = \sum_{j=1}^{p+d} \varphi_j \hat{Y}_{t}(h-j) - \sum_{j=1}^{q} \theta_j \hat{a}_{t}(h-j) \tag{8}
+$$
+
+where
+
+$$
+\hat{Y}_t(j)  = \text{E}(Y_{t+j}|Y_t, Y_{t-1}, \ldots) \qquad \forall j\geq  1
+$$
+
+$$
+\hat{Y}_t(j)  = Y_{t+j} \qquad j = 0
+$$
+
+$$
+\hat{a}_t(j)  = 0  \qquad \forall j \geq  1
+$$
+
+$$
+\hat{a}_t(j)  = Y_{t+j} - \hat{Y}_{t+j-1}(1) = a_{t+j} \qquad \forall j \leq 0
+$$
+
+# Examples
+
+## ARIMA(1,0,1) - ARMA(1,1)
+
+Our model is
+
+$$(1 - \phi L) (Y_t - \mu ) = (1- \theta L) a_t$$
+
+$h$-steps ahead forecasts
+
+$$
+\begin{aligned}
+Y_{t+h}  = \mu + \phi (Y_{t+h-1} - \mu) + a_{t+h} - \theta a_{t+h-1}
+\\ \hat{Y}_t(1)  = \mu + \phi (Y_t - \mu) - \theta a_t
+\\ \hat{Y}_t(h)  = \mu + \phi \bigl(\hat{Y}_t(h-1) - \mu \bigr)
+\\ = \mu + \phi^{h} (Y_t - \mu) - \phi^{h-1} \theta a_t \qquad \forall h \geq 2
+\end{aligned}
+$$
+
+Variance of Prediction Error
+
+$$
+\text{V}\bigl(e_t(h)\bigr)  = \sigma_a^{2} \Biggl[1 +\sum_{j=1}^{h-1} \biggl( \phi^{j-1} \bigl( \phi - \theta \bigr) \biggr)^{2} \Biggr] 
+$$
+
+$$
+\lim_{h \rightarrow \infty}\text{V}\bigl(e_t(h)\bigr)  = \sigma_a^{2} \Biggl[ 1 + \dfrac{(\phi - \theta)^{2}}{1 - \phi^{2}} \Biggr]
+$$
+
+## ARIMA(0,1,1)
+
+Our model is
+
+$$
+(1 - L) Y_t = (1 - \theta L) a_t
+$$
+
+Notice that this is a particular case of the previous example, with
+$$
+\phi =1, \qquad (1 - L) \mu = 0$$
+
+$$
+\begin{aligned}
+Y_{t+h}  = Y_{t+h-1} + a_{t+h} - \theta a_{t+h-1}
+\\ \hat{Y}_t(1)  = (1-\theta) Y_{t} + \theta (1-\theta) Y_{t-1} +
+\ldots
+\\ \hat{Y}_t(1)  = Y_t  - \theta a_{t}
+\\ \hat{Y}_t(h)  = \hat{Y}_t(h-1), \qquad  h > 1
+\\ \hat{Y}_t(h)  = \hat{Y}_t(1), \qquad  h > 1 
+\\ \psi_1 = \psi_2 = \ldots = (1 - \theta ) 
+\\ \text{V} \bigl(e_t(h)\bigr)  = \sigma_a^{2} \bigl( 1+ (h-1) (1-\theta)^{2} \bigr)
+\end{aligned}
+$$
+
+## ARIMA(1,1,0)
+
+Our model is
+
+$$
+\begin{aligned}
+(1 - \varphi L) \Delta Y_t = a_t
+\\ \Delta Y_t = \varphi \Delta Y_{t-1} + a_t
+\\ Y_t - Y_{t-1} = \varphi (Y_{t-1} - Y_{t-2}) + a_t
+\\ Y_t = (1 + \varphi) Y_{t-1} - \varphi Y_{t-2} + a_t
+\end{aligned}
+$$
+
+Our predictions will be
+
+$$
+\begin{aligned}
+\hat{Y}_t(1) = (1 + \varphi) Y_t - \varphi Y_{t-1}
+\\ \hat{Y}_t(2) = (1 + \varphi) \hat{Y}_{t}(1) - \varphi Y_t
+\\ \hat{Y}_t(3) = (1 + \varphi) \hat{Y}_t(2) - \varphi \hat{Y}_t(1)
+\\ \hat{Y}_t(h) = (1 + \varphi) \hat{Y}_{t}(h-1) - \varphi \hat{Y}_{t}(h-2) \qquad h \geq 3
+\end{aligned}
+$$
+
+**Alternative:** it is often more convenient to work with $W_t = \Delta Y_t$ directly and integrate afterwards. We develop this route in general below (Section "Forecasting an Integrated Series").
+
+## ARIMA(0,2,2)
+
+Our model is
+
+$$
+\begin{aligned}
+\Delta^2 Y_t = (1 - 0.9L + 0.5 L^2) a_t
+\\ (1 - L)^2 Y_{t+h} = (1 - 0.9L + 0.5 L^2) a_{t+h}
+\end{aligned}
+$$
+Remember that $(1-L)^2 = 1 - 2L + L^2$
+$$
+\begin{aligned}
+\Delta^2 Y_t = Y_t - 2Y_{t-1} + Y_{t-2}
+ \\ Y_{t+h} - 2Y_{t+h-1} + Y_{t+h-2} = (1 - 0.9L + 0.5 L^2) a_{t+h}
+ \\ Y_{t+h} = 2 Y_{t+h-1} - Y_{t+h-2} + a_{t+h} - 0.9 a_{t+h-1} + 0.5 a_{t+h-2}
+\end{aligned}
+$$
+
+Forecasts:
+
+$$
+\begin{aligned}
+\hat{Y}_t(1) = 2 Y_t - Y_{t-1} - 0.9 a_{t} + 0.5 a_{t-1}
+\\ \hat{Y}_t(2) = 2 \hat{Y}_t(1) - Y_{t} + 0.5 a_{t}
+\\ \hat{Y}_t(3) = 2 \hat{Y}_t(2) - \hat{Y}_t(1)
+\\ \hat{Y}_t(h) = 2 \hat{Y}_t(h-1) - \hat{Y}_t(h-2) \qquad \forall h \geq 3
+\end{aligned}
+$$
+
+**Note**
+
+In these expressions
+
+$$
+a_t  = Y_t - \hat{Y}_{t-1}(1) 
+\\ a_{t-1} = Y_{t-1} - \hat{Y}_{t-2}(1)
+$$
+
+$$
+a_s = Y_s - \hat{Y}_{s-1}(1) = Y_s - \Biggl(\sum_{j=1}^{p+d} \varphi_j Y_{s-j} - \sum_{j=1}^{q} \theta_j a_{s-j}\Biggr) \qquad s=p+d+1, \ldots , t
+$$
+
+# Forecasting an Integrated Series
+
+So far our examples have forecast $Y_t$ directly from a model written for $Y_t$ itself. Often, however, the model is identified and estimated for the **differenced** series, $W_t = \Delta^d Y_t$, because $Y_t$ itself is not stationary. We then need to translate forecasts (and their uncertainty) of $W_t$ back into forecasts of $Y_t$.
+
+## Point Forecasts
+
+If $d=1$, $$W_t = \Delta Y_t = (1 - L)Y_t = Y_t - Y_{t-1}$$
+is stationary, and
+
+$$
+Y_t = W_t + Y_{t-1}
+$$
+
+so that
+
+$$
+\begin{aligned}
+\hat{Y}_t(h) = \hat{W}_t(h) + \hat{Y}_{t}(h-1) 
+\\ = \hat{W}_t(h) +\hat{W}_t(h-1)+ \ldots + \hat{W}_t(1) + Y_t
+\end{aligned}
+$$
+
+That is, the $h$-step-ahead forecast of $Y$ is simply $Y_t$ plus the cumulative sum of the $h$-step-ahead forecasts of $W$.
+
+If $d=2$,
+
+$$
+W_t = \Delta^2 Y_t = (1 - L)^2 Y_t = (1 - 2L + L^2)Y_t
+$$
+is stationary, and
+$$
+\begin{aligned}
+W_t = Y_t - 2 Y_{t-1} + Y_{t-2}
+\\ Y_t = W_t + 2 Y_{t-1} - Y_{t-2}
+\end{aligned}
+$$
+
+so that
+
+$$
+\begin{aligned}
+\hat{Y}_t(h) =\hat{W}_t(h) +2 \hat{Y}_t(h-1)-\hat{Y}_t(h-2)
+\\ = \sum_{j=0}^{h-1} (j+1) \hat{W}_t(h-j) + Y_t + h (Y_t -Y_{t-1})
+\end{aligned}
+$$
+
+## Forecast-Error Variance and Confidence Intervals
+
+Getting the point forecast right is only half the job — for a confidence interval we also need $\text{V}[e_{Y,t}(h)]$, and this needs a little more care than in the stationary case, because errors made in forecasting $W$ **accumulate** when we sum them to reconstruct $Y$.
+
+**Method 1: Forecast $Y$ directly (combined operator).** The simplest approach is to not think of $Y$ and $W$ separately at all. Since $Y_t$ follows an ARIMA($p,d,q$) model, write it directly as $\varphi(B)(1-L)^d Y_t = \theta(B) a_t$, expand the combined AR operator $\varphi(B)(1-L)^d$, and obtain the $\psi$-weights of $Y_t$ itself (its Random Shock form) exactly as we did for the stationary examples above. Then the usual formula applies unchanged:
+
+$$
+\text{V}[e_{Y,t}(h)] = \Bigl(1 + \psi_1^2 + \psi_2^2 + \ldots + \psi_{h-1}^2\Bigr)\sigma_a^2
+$$
+
+This is the most direct route, and the one we use in the worked exercises below.
+
+**Method 2: Build up from the errors in $W$.** It is also useful to see *why* the variance grows the way it does, by working through the errors in $W$ directly. Since $e_{Y,t}(h) = \sum_{j=1}^{h} e_{W,t}(j)$ (the error in $Y_{t+h}$ is the sum of the errors made forecasting each intervening $W_{t+j}$), we have
+
+$$
+\text{V}[e_{Y,t}(h)] = \sum_{j=1}^{h} \text{V}[e_{W,t}(j)] + 2\sum_{i<j} \text{Cov}\bigl[e_{W,t}(i), e_{W,t}(j)\bigr]
+$$
+
+Because forecast errors for $W$ at different horizons are correlated (recall the "Correlation between forecast errors" result above), the **covariance terms do not vanish** — this is precisely why an integrated series' confidence bands widen faster, and never re-converge, unlike a stationary series' bands, which flatten out at the unconditional variance. Method 1 and Method 2 always agree; Method 1 is simply the faster way to reach the same number.
+
+## $d=1$ with Drift vs. $d=2$: Same-Looking Trend, Very Different Uncertainty
+
+A case worth isolating on its own, because it trips people up in practice: an $I(1)$ series with a drift term and an $I(2)$ series with none can produce **visually similar, trending point forecasts**, yet their forecast uncertainty behaves completely differently.
+
+**Case A — $d=1$ with drift.** $Y_t = c + Y_{t-1} + a_t$. Since $\psi_j = 1$ for all $j\geq 0$,
+
+$$
+\hat{Y}_T(h) = Y_T + hc, \qquad \text{V}[e_T(h)] = h\,\sigma_a^2
+$$
+
+The point forecast is a straight line with slope $c$; the forecast-error variance grows **linearly** in $h$.
+
+**Case B — $d=2$, no constant.** $\Delta^2 Y_t = a_t$, i.e. $Y_t = 2Y_{t-1} - Y_{t-2} + a_t$. Here $\psi_j = j+1$, and applying the recursion gives
+
+$$
+\hat{Y}_T(h) = Y_T + h\,(Y_T - Y_{T-1}), \qquad \text{V}[e_T(h)] = \sigma_a^2\sum_{j=1}^{h} j^2 = \sigma_a^2\,\frac{h(h+1)(2h+1)}{6}
+$$
+
+The point forecast is *also* a straight line — but its slope is whatever the **most recently realized** increment happened to be, rather than a fixed average drift $c$. And critically, the forecast-error variance now grows **cubically** in $h$.
+
+**The takeaway:** if $Y_T - Y_{T-1}$ happens to equal $c$, Cases A and B give the *exact same point forecast at every horizon* — you cannot tell them apart by looking at the central forecast alone. But their confidence intervals diverge dramatically as $h$ grows, because integrating twice compounds the innovations' variance twice. This is exactly the kind of distinction that matters when deciding, from a short sample, whether a series is $I(1)$-with-trend or $I(2)$: the unit-root test result changes not just the model, but how much you should trust a forecast several periods out.
+
+# Forecast Updates
+
+The single most important skill for what follows in Part 2 is **updating**: revising an existing forecast once a new observation becomes available, without recomputing it from scratch. This recursive updating rule is the basis of **static forecasting** (one-step-ahead forecasts rolled forward period by period as new data arrive, without re-estimating the model), which we return to when we discuss forecast evaluation and encompassing.
+
+$$
+\begin{aligned}
+\hat{Y}_{t}(h)  = \psi_h a_{t} + \psi_{h+1} a_{t-1} + \psi_{h+2} a_{t-2} + \ldots 
+\\ \hat{Y}_{t-1}(h+1)  = \psi_{h+1} a_{t-1} + \psi_{h+2} a_{t-2} + \ldots
+\\ \hat{Y}_{t}(h)  = \hat{Y}_{t-1}(h+1) +  \psi_h a_{t}
+\\ e_{t-1}(1)  = Y_{t} - \hat{Y}_{t-1}(1) = a_{t}
+\\ \hat{Y}_t(h)  = \hat{Y}_{t-1}(h+1) + \psi_h [Y_t - \hat{Y}_{t-1}(1)] 
+\\ \hat{Y}_{t+1}(h)  = \hat{Y}_t(h+1)+ \psi_h [Y_{t+1}-\hat{Y}_t(1)]
+\end{aligned}
+$$
+
+## Example: AR(1) Model
+
+$$
+(1 - \phi L) (Y_t - \mu) = a_t
+$$
+
+$$
+\phi=0.6, \quad \mu=9, \quad \sigma^2_a = 0.1
+$$
+
+$$
+Y_{100}=8.9, \quad Y_{99}=9, \quad Y_{98}=9, \quad Y_{97}=9.6
+$$
+We want to find the forecasts for 
+$$
+Y_{101}, \quad Y_{102}, \quad Y_{103}, \quad Y_{104}
+$$
+and the confidence intervals.
+
+The model
+
+$$
+Y_t - \mu  = \phi(Y_{t-1} - \mu) + a_t
+$$
+
+and the forecasting equation:
+
+$$
+\hat{Y}_t(h)  = \mu + \phi \bigl(\hat{Y}_{t}(h-1) - \mu \bigr)
+\\ = \mu + \phi^{h} (Y_t - \mu) \qquad \forall h \geq 1
+$$
+
+Our point forecasts will be:
+
+$$
+\begin{aligned}
+\hat{Y}_{100}(1)  = 9 + 0.6 (8.9 - 9) = 8.94 
+\\ \hat{Y}_{100}(2)  = 9 + (0.6)^{2} (8.9 - 9) = 8.964 
+\\ \hat{Y}_{100}(3)  = 9 + (0.6)^{3} (8.9 - 9) = 8.9784 
+\\ \hat{Y}_{100}(4)  = 9 + (0.6)^{4} (8.9 - 9) = 8.98704
+\end{aligned}
+$$
+
+We need the $\psi$ weights to obtain the confidence intervals.
+
+$$
+\begin{aligned}
+(1-\phi L) (1 + \psi_1 L + \psi_2 L^{2}+ \ldots)  = 1
+\\ \psi_j = \phi^{j}, \qquad j\geq 0 
+\end{aligned}
+$$
+
+Confidence intervals: 
+$$ 
+\begin{aligned}
+\hat{Y}_t(h) \pm z_{\alpha/2} \sqrt{\text{V}[e_t(h)]}
+\\ \text{V}[e_t(h)] = (1 + \psi_1^2 + \psi_2^2+ \ldots + \psi_{h-1}^2) \sigma_a^2
+\end{aligned}
+$$
+
+- $Y_{101} \qquad  8.94  \pm 1.96\sqrt{0.1}$
+- $Y_{102} \qquad 8.964  \pm 1.96 \sqrt{1+ (0.6)^{2}} \sqrt{0.1}$
+
+Now, we find that $Y_{101}=8.8$. Update your forecasts:
+
+$$
+\begin{aligned}
+\hat{Y}_{101}(1)  = \hat{Y}_{100}(2) + \psi_1 \bigl(Y_{101}-\hat{Y}_{100}(1) \bigr) 
+\\ = 8.964 + 0.6 (8.8 - 8.94) = 8.88 
+\\ \hat{Y}_{101}(2)  = \hat{Y}_{100}(3) + \psi_2 \bigl(Y_{101}-\hat{Y}_{100}(1) \bigr) 
+\\ = 8.9784 + 0.6^{2} (8.8 - 8.94) = 8.928
+\\ \hat{Y}_{101}(3)  = \hat{Y}_{100}(4) + \psi_3 \bigl(Y_{101}-\hat{Y}_{100}(1) \bigr) \\ = 8.98704 + 0.6^{3} (8.8 - 8.94) = 8.9568
+\end{aligned}
+$$
+
+**Notice**: After learning $Y_{101}$ the forecasts are corrected, and given that prediction error was **negative**, our predictions will be smaller than before.             
+
+# Practice Exercises
+
+## Exercise 1: AR(2) Model
+
+Consider the model
+
+$$
+(1 - 0.4L - 0.3L^2) Y_t = a_t, \qquad \sigma_a^2 = 1
+$$
+
+with $Y_T = 5$ and $Y_{T-1} = 4$. Find $\hat{Y}_T(1)$, $\hat{Y}_T(2)$, $\hat{Y}_T(3)$, and a 95% confidence interval for $Y_{T+2}$.
+
+### Answer
+
+Using the difference equation recursively (rule: past $Y$'s stay as observed, future $Y$'s are replaced by their forecasts):
+
+$$
+\begin{aligned}
+\hat{Y}_T(1) &= 0.4\, Y_T + 0.3\, Y_{T-1} = 0.4(5) + 0.3(4) = 3.2 \\
+\hat{Y}_T(2) &= 0.4\, \hat{Y}_T(1) + 0.3\, Y_T = 0.4(3.2) + 0.3(5) = 2.78 \\
+\hat{Y}_T(3) &= 0.4\, \hat{Y}_T(2) + 0.3\, \hat{Y}_T(1) = 0.4(2.78) + 0.3(3.2) = 2.072
+\end{aligned}
+$$
+
+For the confidence interval we need the $\psi$-weights. From $(1-0.4L-0.3L^2)(1+\psi_1 L + \psi_2 L^2 +\ldots) = 1$, matching coefficients:
+
+$$
+\psi_1 = 0.4, \qquad \psi_2 = 0.4\,\psi_1 + 0.3 = 0.46
+$$
+
+$$
+\text{V}[e_T(2)] = (1+\psi_1^2)\sigma_a^2 = (1+0.16)(1) = 1.16
+$$
+
+$$
+\hat{Y}_T(2) \pm 1.96\sqrt{1.16} \;=\; 2.78 \pm 2.111 \;=\; (0.669,\ 4.891)
+$$
+
+## Exercise 2: A Model with AR and MA Terms — ARMA(1,2)
+
+Consider the model, written in mean-deviation form,
+
+$$
+(1 - 0.5L)(Y_t - \mu) = (1 + 0.4L - 0.2L^2) a_t, \qquad \mu = 10, \quad \sigma_a^2 = 0.5
+$$
+
+At time $T$: $Y_T = 10.3$, $a_T = 0.2$, $a_{T-1} = -0.1$. Find $\hat{Y}_T(1)$, $\hat{Y}_T(2)$, $\hat{Y}_T(3)$, and a 95% confidence interval for $Y_{T+2}$.
+
+### Answer
+
+Writing out the difference equation for $Y_{t+h}$ and applying the usual rules (unknown future $a$'s replaced by 0; known past $a$'s kept):
+
+$$
+\begin{aligned}
+\hat{Y}_T(1) &= \mu + 0.5(Y_T - \mu) + 0.4\, a_T - 0.2\, a_{T-1} \\
+&= 10 + 0.5(0.3) + 0.4(0.2) - 0.2(-0.1) = 10.25 \\[4pt]
+\hat{Y}_T(2) &= \mu + 0.5\bigl(\hat{Y}_T(1) - \mu\bigr) - 0.2\, a_T \qquad \text{(the } a_{T+1}\text{ term vanishes, but } a_T \text{ is still known)}\\
+&= 10 + 0.5(0.25) - 0.2(0.2) = 10.085 \\[4pt]
+\hat{Y}_T(3) &= \mu + 0.5\bigl(\hat{Y}_T(2) - \mu\bigr) = 10 + 0.5(0.085) = 10.0425
+\end{aligned}
+$$
+
+Note how the MA(2) term keeps contributing through $\hat{Y}_T(2)$ (it still involves the known $a_T$) but drops out completely by $\hat{Y}_T(3)$ — exactly as it should, since an MA($q$) process has no memory beyond $q$ periods.
+
+$\psi$-weights, from $(1-0.5L)(1+\psi_1L+\psi_2L^2+\ldots) = 1+0.4L-0.2L^2$:
+
+$$
+\psi_1 = 0.4+0.5 = 0.9, \qquad \psi_2 = 0.5\,\psi_1 - 0.2 = 0.25
+$$
+
+$$
+\text{V}[e_T(2)] = (1+\psi_1^2)\sigma_a^2 = (1+0.81)(0.5) = 0.905
+$$
+
+$$
+\hat{Y}_T(2) \pm 1.96\sqrt{0.905} \;=\; 10.085 \pm 1.864 \;=\; (8.220,\ 11.950)
+$$
+
+## Exercise 3: Forecasting an Integrated Series, with Updating
+
+$X_t$ requires one difference to be stationary, $Y_t = \Delta X_t$. (Here $X$ and $Y$ play the roles of $Y$ and $W$ in the section "Forecasting an Integrated Series".) The model is
+
+$$
+(1-0.3L) Y_t = (1+0.2L) a_t, \qquad \sigma_a^2 = 0.8
+$$
+
+You observe $X_{T-2}=100$, $X_{T-1}=101$, $X_T = 101.8$, and you are told that the one-step forecast made at $T-1$ was $\hat{Y}_{T-1}(1) = 0.9$.
+
+**(a)** Find $\hat{X}_T(1)$ and $\hat{X}_T(2)$, and a 95% confidence interval for $X_{T+2}$.
+**(b)** A new observation arrives, $X_{T+1} = 102.1$. Update the one-step-ahead forecast.
+
+### Answer
+
+**(a) Point forecast.** First, $Y_{T-1} = X_{T-1}-X_{T-2} = 1$ and $Y_T = X_T - X_{T-1} = 0.8$. The one-step-ahead innovation is recovered as usual, $a_T = Y_T - \hat{Y}_{T-1}(1) = 0.8-0.9=-0.1$.
+
+$$
+\hat{Y}_T(1) = 0.3\,Y_T + 0.2\,a_T = 0.3(0.8)+0.2(-0.1) = 0.22
+$$
+$$
+\hat{Y}_T(2) = 0.3\,\hat{Y}_T(1) = 0.3(0.22) = 0.066
+$$
+
+Using the point-forecast rule from the previous section ($\hat{X}_T(h) = X_T + \sum_{j=1}^h \hat{Y}_T(j)$):
+
+$$
+\hat{X}_T(1) = 101.8+0.22 = 102.02, \qquad \hat{X}_T(2) = 101.8+0.22+0.066 = 102.086
+$$
+
+**Confidence interval — two routes, same answer.** $\psi$-weights of $Y_t$: from $(1-0.3L)(1+\psi_1L+\ldots)=1+0.2L$, $\psi_1 = 0.5$.
+
+*Method 2 (build from the errors in $Y_t$):*
+$$
+\text{V}[e_{X,T}(2)] = \text{V}[e_{Y,T}(1)] + \text{V}[e_{Y,T}(2)] + 2\,\text{Cov}\bigl[e_{Y,T}(1),e_{Y,T}(2)\bigr] = \sigma_a^2 + (1+\psi_1^2)\sigma_a^2 + 2\psi_1\sigma_a^2 = 2.6
+$$
+
+*Method 1 (combined operator for $X$ directly):* $(1-0.3L)(1-L)X_t = (1-1.3L+0.3L^2)X_t = (1+0.2L)a_t$ gives $\Psi_1 = 1.5$, so
+$$
+\text{V}[e_{X,T}(2)] = (1+\Psi_1^2)\sigma_a^2 = (1+2.25)(0.8) = 2.6 \quad\checkmark
+$$
+
+$$
+\hat{X}_T(2) \pm 1.96\sqrt{2.6} \;=\; 102.086 \pm 3.161 \;=\; (98.925,\ 105.247)
+$$
+
+**(b) Updating.** With $Y_{T+1} = X_{T+1}-X_T = 102.1-101.8 = 0.3$, apply the updating rule $\hat{Y}_{T+1}(1) = \hat{Y}_T(2) + \psi_1\bigl(Y_{T+1}-\hat{Y}_T(1)\bigr)$:
+
+$$
+\hat{Y}_{T+1}(1) = 0.066 + 0.5(0.3-0.22) = 0.106
+$$
+
+$$
+\hat{X}_{T+1}(1) = X_{T+1} + \hat{Y}_{T+1}(1) = 102.1+0.106 = 102.206
+$$
+
+This is exactly the **static forecasting** logic: as each new observation of $X$ arrives, we recover the implied innovation, revise the forecast without re-estimating the model, and roll one period forward — the mechanism we build on in Part 2.
+
+## Exercise 4: $d=1$ with Drift vs. $d=2$
+
+Two candidate models are proposed for the same series $Y_t$, with $Y_T = 50$, $Y_{T-1}=49.5$, and $\sigma_a^2=1$ in both cases:
+
+$$
+\text{Model A: } Y_t = 0.5 + Y_{t-1} + a_t \qquad\qquad \text{Model B: } \Delta^2 Y_t = a_t
+$$
+
+Find $\hat{Y}_T(5)$ and a 95% confidence interval for $Y_{T+5}$ under each model, and comment.
+
+### Answer
+
+**Model A** ($d=1$, drift $c=0.5$): $\psi_j=1$ for all $j$.
+
+$$
+\hat{Y}_T(5) = Y_T + 5c = 50+2.5 = 52.5, \qquad \text{V}[e_T(5)] = 5\sigma_a^2 = 5
+$$
+
+$$
+\hat{Y}_T(5) \pm 1.96\sqrt{5} = 52.5 \pm 4.383 = (48.117,\ 56.883)
+$$
+
+**Model B** ($d=2$, no constant): the last realized increment is $Y_T-Y_{T-1}=0.5$, and $\psi_j=j+1$.
+
+$$
+\hat{Y}_T(5) = Y_T + 5(Y_T-Y_{T-1}) = 50+5(0.5) = 52.5, \qquad \text{V}[e_T(5)] = \sigma_a^2\sum_{j=1}^{5}j^2 = 55
+$$
+
+$$
+\hat{Y}_T(5) \pm 1.96\sqrt{55} = 52.5 \pm 14.535 = (37.965,\ 67.035)
+$$
+
+**Comment:** the point forecast is **identical**, 52.5, under both models — because the last observed increment happened to match the drift. But the 95% interval for Model B is more than three times as wide as Model A's (about 29 units vs. 9). Had we only reported the point forecast, the two models would look interchangeable; the confidence interval reveals that Model B carries far less forecasting reliability at this horizon. This is the practical cost of misidentifying $d=1$-with-drift as $d=2$ (or vice versa).
+

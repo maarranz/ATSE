@@ -1,0 +1,520 @@
+---
+title: "Forecast Exercise"
+author: "Miguel A. Arranz"
+date: today
+date-format: long
+toc: true
+format:
+    html:
+        code-fold: true
+        code-summary: "Show the code"
+        title-block-banner: true
+abstract: Forecasting with ARMA and ARIMA models
+---
+
+```{r libs, include=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+```
+
+# Model 1
+
+Let's assume we have the following data for a variable we are calling $Y$:
+
+| t   | $Y_t$ |
+| --- | ---   |
+| T-1 | 0.2   |
+| T   | 0.21  |
+
+The model for $Y$ is
+
+$$
+(1 - 0.5 L) Y_t = (1 + 0.3 L) a_t
+$$ {#eq-arma11}
+
+where $a_t \sim WN(0, 2)$, and 2 denotes the **variance**. We also know that the one-step-ahead forecast made at $T-1$ was $\hat{Y}_{T-1}(1) = 0.22$.
+
+## Question 1
+
+What is the model for $Y$ in @eq-arma11? Is it causal? Is it invertible?
+
+### Answer
+
+It is an ARMA(1,1) model. The inverse roots of the polynomials are 0.5 (AR) and $-0.3$ (MA). Both are smaller than one in absolute value, so the model is causal and invertible.
+
+**Why invertibility matters for forecasting.** Invertibility means we can write @eq-arma11 in its inverted form,
+
+$$
+Y_t = \pi_1 Y_{t-1} + \pi_2 Y_{t-2} + \ldots + a_t
+$$
+
+with weights $\pi_j$ that die out. Then, in practice, only a finite number of past observations is needed to compute a forecast. To obtain the $\pi$-weights, write $\dfrac{1 - 0.5L}{1 + 0.3L} = 1 - \pi_1 L - \pi_2 L^2 - \ldots$ and match coefficients in
+
+$$
+1 - 0.5 L = (1 + 0.3 L)(1 - \pi_1 L - \pi_2 L^2 - \pi_3 L^3 - \ldots)
+$$
+
+$$
+\begin{aligned}
+L: &\quad -0.5 = 0.3 - \pi_1 &\Rightarrow&\quad \pi_1 = 0.8 \\
+L^2: &\quad 0 = -\pi_2 - 0.3\,\pi_1 &\Rightarrow&\quad \pi_2 = -0.24 \\
+L^3: &\quad 0 = -\pi_3 - 0.3\,\pi_2 &\Rightarrow&\quad \pi_3 = 0.072
+\end{aligned}
+$$
+
+In general, $\pi_j = 0.8\,(-0.3)^{j-1}$. The weights decay geometrically because the MA root is inside the unit circle. Had the MA coefficient been larger than one in absolute value, the $\pi$'s would explode, and the distant past would matter more than the recent past.
+
+We can check this with `ARMAtoMA()`. That function expands $\frac{1+\theta L}{1-\phi L}$, so we pass $\theta = -0.5$ and $\phi = -0.3$, and the $\pi$'s are minus the resulting coefficients:
+
+```{r}
+pi_w <- -ARMAtoMA(ar = -0.3, ma = -0.5, lag.max = 5)
+print(pi_w)
+```
+
+## Question 2
+
+Using the model in @eq-arma11, calculate the forecast of $Y_{T+2}$ made at time $T$, $\hat{Y}_T(2)$.
+
+### Answer
+
+Writing @eq-arma11 for periods $T+1$ and $T+2$:
+
+$$
+\begin{aligned}
+Y_{T+1} &= 0.5\, Y_T + a_{T+1} + 0.3\, a_T \\
+Y_{T+2} &= 0.5\, Y_{T+1} + a_{T+2} + 0.3\, a_{T+1}
+\end{aligned}
+$$
+
+$$
+\hat{Y}_T(1) = \text{E}[Y_{T+1} | I_T] = 0.5\, Y_T + 0.3\, a_T
+$$
+
+The shock $a_T$ is the one-step-ahead forecast error made at $T-1$:
+
+$$
+a_T = Y_T - \hat{Y}_{T-1}(1) = 0.21 - 0.22 = -0.01
+$$
+
+```{r}
+y0 <- 0.21
+a0 <- y0 - 0.22
+y1 <- 0.5*y0 + 0.3*a0
+print(y1)
+```
+
+$$
+\hat{Y}_T(1) = 0.102
+$$
+
+$$
+\hat{Y}_T(2) = \text{E}[Y_{T+2} | I_T] = 0.5\, \hat{Y}_T(1)
+$$
+
+```{r}
+y2 <- 0.5*y1
+print(y2)
+```
+
+$$
+\hat{Y}_T(2) = 0.051
+$$
+
+## Question 3
+
+Using the model in @eq-arma11, calculate the 95% confidence interval for $Y_{T+2}$.
+
+### Answer
+
+If we express @eq-arma11 in its random shock form,
+
+$$
+Y_t = a_t + \psi_1 a_{t-1} + \psi_2 a_{t-2} + \ldots
+$$
+
+$$
+Y_{T+2} = a_{T+2} + \psi_1 a_{T+1} + \psi_2 a_{T} + \ldots
+$$
+
+$$
+\hat{Y}_T(2) = \psi_2 a_{T} + \psi_3 a_{T-1} + \ldots
+$$
+
+The forecast error is
+
+$$
+e_T(2) = Y_{T+2} - \hat{Y}_T(2) = a_{T+2} + \psi_1 a_{T+1}
+$$
+
+and its variance is
+
+$$
+\sigma^2_e = (1 + \psi_1^2)\, \sigma^2_a
+$$
+
+To obtain $\psi_1$:
+
+$$
+Y_t = \dfrac{1 + 0.3 L}{1 - 0.5 L}\, a_t, \qquad \dfrac{1 + 0.3 L}{1 - 0.5 L} = 1 + \psi_1 L + \psi_2 L^2 + \ldots
+$$
+
+$$
+1 + 0.3 L = (1 - 0.5 L) (1 + \psi_1 L + \psi_2 L^2 + \ldots)
+$$
+
+Terms in $L$:
+
+$$
+0.3 = \psi_1 - 0.5 \qquad \Rightarrow \qquad \psi_1 = 0.8
+$$
+
+Terms in $L^2$ give $\psi_2 = 0.5\,\psi_1 = 0.4$, and in general $\psi_j = 0.8\,(0.5)^{j-1}$ for $j \geq 1$. We will need these weights later.
+
+```{r}
+z <- ARMAtoMA(ar = 0.5, ma = 0.3, lag.max = 2)
+print(z)
+```
+
+Thus
+
+```{r}
+s2a <- 2
+s2e <- (1 + 0.8^2)*s2a
+print(s2e)
+```
+
+$$
+\sigma^2_e = 3.28
+$$
+
+The 95% confidence interval is
+
+$$
+\hat{Y}_T(2) \pm 1.96\, \sigma_e
+$$
+
+```{r}
+se <- sqrt(s2e)
+upper <- y2 + 1.96*se
+lower <- y2 - 1.96*se
+print(c(lower, upper))
+```
+
+$$
+0.051 \pm 3.550 = (-3.499,\ 3.601)
+$$
+
+# Model 2
+
+Suppose now that $Y_t$ is, in fact, the first difference of a variable $X_t$ that had to be differenced once to make it stationary:
+
+$$
+Y_t = \Delta X_t = X_t - X_{t-1}
+$$ {#eq-ydiff}
+
+| t   | $X_t$ | $Y_t = \Delta X_t$ |
+| --- | ---   | ---                |
+| T-2 | 1     | -                  |
+| T-1 | 1.2   | 0.2                |
+| T   | 1.41  | 0.21               |
+
+The model for $Y_t$ is still @eq-arma11, with the same $\sigma^2_a = 2$ and $\hat{Y}_{T-1}(1) = 0.22$.
+
+## Question 4
+
+Combining @eq-arma11 and @eq-ydiff, write down the model for $X_t$.
+
+### Answer
+
+Substituting @eq-ydiff into @eq-arma11:
+
+$$
+(1 - 0.5 L)\, \Delta X_t = (1 + 0.3 L)\, a_t
+$$ {#eq-arima111}
+
+$$
+(1 - 0.5 L) (1 - L)\, X_t = (1 + 0.3 L)\, a_t
+$$
+
+$$
+(1 - 0.5 L) (1 - L) = 1 - L - 0.5 L + 0.5 L^2 = 1 - 1.5 L + 0.5 L^2
+$$
+
+$$
+(1 - 1.5 L + 0.5 L^2)\, X_t = (1 + 0.3 L)\, a_t
+$$ {#eq-arima111-exp}
+
+@eq-arima111 and @eq-arima111-exp are the same ARIMA(1,1,1) model. The first writes it in terms of $\Delta X_t$; the second expands the combined AR operator so the model is written for $X_t$ directly.
+
+## Question 5
+
+Using @eq-arima111 and the forecasts of $Y$ from Question 2, find $\hat{X}_T(3)$. Use the property that
+$$
+X_{T+3} = X_T + \Delta X_{T+1} + \Delta X_{T+2} + \Delta X_{T+3}
+$$
+
+### Answer
+
+By @eq-ydiff,
+
+$$
+X_{T+3} = X_T + Y_{T+1} + Y_{T+2} + Y_{T+3}
+$$
+
+$$
+\hat{X}_T(3) = X_T + \hat{Y}_T(1) + \hat{Y}_T(2) + \hat{Y}_T(3)
+$$
+
+We already have $\hat{Y}_T(1)$ and $\hat{Y}_T(2)$. From @eq-arma11 we also need $\hat{Y}_T(3) = 0.5\, \hat{Y}_T(2)$:
+
+```{r}
+y3 <- 0.5*y2
+print(y3)
+x0 <- 1.41
+x3 <- x0 + y1 + y2 + y3
+print(x3)
+```
+
+$$
+\hat{X}_T(3) = 1.41 + 0.102 + 0.051 + 0.0255 = 1.5885
+$$
+
+## Question 6
+
+Using the model in @eq-arima111-exp, calculate the 95% confidence interval for $X_{T+3}$.
+
+### Answer
+
+**Method 1: combined operator.** From @eq-arima111-exp,
+
+$$
+X_t = \dfrac{1 + 0.3 L}{1 - 1.5L + 0.5 L^2}\, a_t = \Psi(L)\, a_t
+$$
+
+$$
+1 + 0.3 L = (1 - 1.5L + 0.5 L^2) (1 + \psi_1 L + \psi_2 L^2 + \psi_3 L^3 + \ldots)
+$$
+
+Terms in $L$:
+
+$$
+0.3 = \psi_1 - 1.5 \qquad \Rightarrow \qquad \psi_1 = 1.8
+$$
+
+Terms in $L^2$:
+
+$$
+0 = \psi_2 - 1.5\, \psi_1 + 0.5 \qquad \Rightarrow \qquad \psi_2 = 1.5\, \psi_1 - 0.5 = 2.2
+$$
+
+```{r}
+p1 <- 1.8
+p2 <- 1.5*p1 - 0.5
+print(p2)
+```
+
+```{r}
+z <- ARMAtoMA(ar = c(1.5, -0.5), ma = 0.3, lag.max = 2)
+print(z)
+```
+
+Notice that the $\psi$-weights of $X$ are the **cumulative sums** of the $\psi$-weights of $Y$ (Question 3): $1$, $1 + 0.8 = 1.8$, $1 + 0.8 + 0.4 = 2.2$. Shocks to an integrated series accumulate.
+
+$$
+\sigma^2_e = (1 + \psi_1^2 + \psi_2^2)\, \sigma^2_a
+$$
+
+```{r}
+s2a <- 2
+s2e <- (1 + p1^2 + p2^2) * s2a
+print(s2e)
+```
+
+$$
+\sigma^2_e = 18.16
+$$
+
+**Method 2: building up from the errors in $Y$.** By @eq-ydiff, the error in $X_{T+3}$ is the sum of the errors made forecasting $Y_{T+1}$, $Y_{T+2}$ and $Y_{T+3}$ with @eq-arma11. Using $\psi_1 = 0.8$, $\psi_2 = 0.4$ for $Y$:
+
+$$
+\begin{aligned}
+e_{Y,T}(1) &= a_{T+1} \\
+e_{Y,T}(2) &= a_{T+2} + 0.8\, a_{T+1} \\
+e_{Y,T}(3) &= a_{T+3} + 0.8\, a_{T+2} + 0.4\, a_{T+1}
+\end{aligned}
+$$
+
+$$
+e_{X,T}(3) = e_{Y,T}(1) + e_{Y,T}(2) + e_{Y,T}(3) = a_{T+3} + 1.8\, a_{T+2} + 2.2\, a_{T+1}
+$$
+
+which gives exactly the same variance, $(1 + 1.8^2 + 2.2^2)\cdot 2 = 18.16$. Equivalently, adding variances and covariances:
+
+$$
+\text{V}[e_{X,T}(3)] = \underbrace{2 + 3.28 + 3.6}_{\text{variances}} + 2\,\underbrace{(1.6 + 0.8 + 2.24)}_{\text{covariances}} = 18.16
+$$
+
+The covariance terms account for more than half of the total. Forecast errors at different horizons are correlated, and ignoring the covariances would badly understate the uncertainty.
+
+The 95% confidence interval is
+
+$$
+\hat{X}_T(3) \pm 1.96\, \sigma_e
+$$
+
+```{r}
+se <- sqrt(s2e)
+upper <- x3 + 1.96*se
+lower <- x3 - 1.96*se
+print(c(lower, upper))
+```
+
+$$
+1.5885 \pm 8.352 = (-6.764,\ 9.941)
+$$
+
+# Going Further
+
+The remaining questions keep the same setup: $Y_t$ follows @eq-arma11, $X_t$ follows @eq-arima111 (equivalently @eq-arima111-exp), and the two are linked by @eq-ydiff.
+
+## Question 7: Updating the Forecasts
+
+A new observation arrives: $X_{T+1} = 1.50$. Using @eq-arma11 and @eq-ydiff, update the forecasts $\hat{Y}_{T+1}(1)$, $\hat{Y}_{T+1}(2)$, $\hat{X}_{T+1}(1)$ and $\hat{X}_{T+1}(2)$ without recomputing them from scratch.
+
+### Answer
+
+First, recover the new observation of $Y$ from @eq-ydiff, and the implied shock (the one-step-ahead forecast error):
+
+$$
+Y_{T+1} = X_{T+1} - X_T = 1.50 - 1.41 = 0.09
+$$
+
+$$
+a_{T+1} = Y_{T+1} - \hat{Y}_T(1) = 0.09 - 0.102 = -0.012
+$$
+
+The updating rule is
+
+$$
+\hat{Y}_{T+1}(h) = \hat{Y}_T(h+1) + \psi_h\, a_{T+1}
+$$
+
+so, with the $\psi$-weights of @eq-arma11, $\psi_1 = 0.8$ and $\psi_2 = 0.4$:
+
+$$
+\begin{aligned}
+\hat{Y}_{T+1}(1) &= \hat{Y}_T(2) + 0.8\, a_{T+1} = 0.051 + 0.8(-0.012) = 0.0414 \\
+\hat{Y}_{T+1}(2) &= \hat{Y}_T(3) + 0.4\, a_{T+1} = 0.0255 + 0.4(-0.012) = 0.0207
+\end{aligned}
+$$
+
+**Check.** Computing $\hat{Y}_{T+1}(1)$ directly from @eq-arma11 gives the same answer: $0.5\, Y_{T+1} + 0.3\, a_{T+1} = 0.045 - 0.0036 = 0.0414$.
+
+```{r}
+x1_new <- 1.50
+yT1 <- x1_new - x0           # new observation of Y
+aT1 <- yT1 - y1              # implied shock
+y_upd1 <- y2 + 0.8*aT1       # updating rule
+y_upd1_direct <- 0.5*yT1 + 0.3*aT1
+y_upd2 <- y3 + 0.4*aT1
+print(c(aT1 = aT1, y_upd1 = y_upd1, y_upd1_direct = y_upd1_direct, y_upd2 = y_upd2))
+```
+
+The updated forecasts of $X$ start from the new observation:
+
+$$
+\begin{aligned}
+\hat{X}_{T+1}(1) &= X_{T+1} + \hat{Y}_{T+1}(1) = 1.50 + 0.0414 = 1.5414 \\
+\hat{X}_{T+1}(2) &= X_{T+1} + \hat{Y}_{T+1}(1) + \hat{Y}_{T+1}(2) = 1.50 + 0.0414 + 0.0207 = 1.5621
+\end{aligned}
+$$
+
+```{r}
+x_upd1 <- x1_new + y_upd1
+x_upd2 <- x1_new + y_upd1 + y_upd2
+print(c(x_upd1 = x_upd1, x_upd2 = x_upd2))
+```
+
+Since the forecast error was **negative** (we over-predicted $Y_{T+1}$), the forecasts of $Y$ are revised downwards. This recursive logic is the basis of **static forecasting**, which we use extensively when evaluating and comparing forecasts.
+
+## Question 8: The Forecast Path and Its Uncertainty
+
+Using @eq-arma11 for $Y$ and @eq-arima111-exp for $X$, compute the forecasts and 95% confidence intervals for $h = 1, \ldots, 10$, made at time $T$. Plot them and compare.
+
+### Answer
+
+For $Y$, @eq-arma11 gives $\hat{Y}_T(h) = 0.5^{h-1}\, \hat{Y}_T(1)$. For $X$, we accumulate using @eq-ydiff: $\hat{X}_T(h) = X_T + \sum_{j=1}^h \hat{Y}_T(j)$. The variances use the $\psi$-weights of each series, with the weights of $X$ being the cumulative sums of those of $Y$.
+
+```{r}
+H <- 10
+s2a <- 2
+psiY <- c(1, ARMAtoMA(ar = 0.5, ma = 0.3, lag.max = H - 1))
+psiX <- cumsum(psiY)
+
+yhat <- y1 * 0.5^(0:(H - 1))
+xhat <- x0 + cumsum(yhat)
+vY <- s2a * cumsum(psiY^2)
+vX <- s2a * cumsum(psiX^2)
+
+tab <- data.frame(h = 1:H,
+                  Y_fcst = yhat, Y_lower = yhat - 1.96*sqrt(vY), Y_upper = yhat + 1.96*sqrt(vY),
+                  X_fcst = xhat, X_lower = xhat - 1.96*sqrt(vX), X_upper = xhat + 1.96*sqrt(vX))
+knitr::kable(tab, digits = 3)
+```
+
+```{r}
+#| fig-width: 9
+#| fig-height: 4
+fc <- rbind(
+  data.frame(series = "Y (stationary)", h = 1:H, fcst = yhat,
+             lower = yhat - 1.96*sqrt(vY), upper = yhat + 1.96*sqrt(vY)),
+  data.frame(series = "X (integrated)", h = 1:H, fcst = xhat,
+             lower = xhat - 1.96*sqrt(vX), upper = xhat + 1.96*sqrt(vX))
+)
+obs <- rbind(
+  data.frame(series = "Y (stationary)", h = c(-1, 0), value = c(0.2, 0.21)),
+  data.frame(series = "X (integrated)", h = c(-2, -1, 0), value = c(1, 1.2, 1.41))
+)
+fc$series  <- factor(fc$series,  levels = c("Y (stationary)", "X (integrated)"))
+obs$series <- factor(obs$series, levels = c("Y (stationary)", "X (integrated)"))
+
+ggplot() +
+  geom_ribbon(data = fc, aes(x = h, ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.25) +
+  geom_line(data = fc, aes(x = h, y = fcst), colour = "steelblue", linewidth = 1) +
+  geom_line(data = obs, aes(x = h, y = value), linewidth = 1) +
+  geom_point(data = obs, aes(x = h, y = value)) +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  facet_wrap(~ series, scales = "free_y") +
+  labs(x = "Horizon h (0 = forecast origin T)", y = NULL) +
+  theme_minimal()
+```
+
+Compare the two panels:
+
+- **$Y$ (stationary, @eq-arma11).** The forecasts decay geometrically towards the unconditional mean, $\text{E}[Y_t] = 0$. The bands widen at first, but then flatten out. The forecast-error variance converges to the unconditional variance of $Y$:
+$$
+\lim_{h\to\infty}\text{V}[e_{Y,T}(h)] = \sigma_a^2\Bigl(1 + \sum_{j=1}^{\infty}\psi_j^2\Bigr) = 2\Bigl(1 + \dfrac{0.8^2}{1-0.5^2}\Bigr) = 3.707
+$$
+- **$X$ (integrated, @eq-arima111-exp).** The forecasts converge to a level, $X_T + \hat{Y}_T(1)/(1-0.5) = 1.41 + 0.204 = 1.614$, but the bands **never stop widening**. Since $\psi_j$ for $X$ converges to $1 + \sum_{j\ge1}\psi_j^{(Y)} = 2.6 \neq 0$, each extra horizon adds roughly $2.6^2 \cdot 2 \approx 13.5$ to the variance, so it eventually grows linearly in $h$.
+
+```{r}
+c(limit_var_Y = s2a * (1 + 0.8^2 / (1 - 0.5^2)),
+  limit_level_X = x0 + y1 / (1 - 0.5))
+```
+
+## Question 9 (Discussion): What About the Trend?
+
+Look at the data again: $X_t$ has been rising by about 0.2 per period, so $\Delta X_t \approx 0.2$. Yet, under @eq-arima111, the forecasts of $\Delta X$ decay to zero, and the forecasts of $X$ level off at about 1.614. Why? What would change if the model for $\Delta X_t$ included a constant?
+
+### Answer
+
+@eq-arima111 has **no constant**, so the unconditional mean of $\Delta X_t$ is zero. As the horizon grows, the forecasts of $\Delta X$ return to that mean, and $X$ stops growing. The model is effectively saying that the recent increases are transitory deviations, not a trend.
+
+Suppose instead that the model were written in mean-deviation form,
+
+$$
+(1 - 0.5L)(\Delta X_t - \mu) = (1 + 0.3L)\, a_t
+$$ {#eq-arima111-drift}
+
+with $\mu \neq 0$. Under @eq-arima111-drift, the forecasts of $\Delta X$ would converge to $\mu$. The forecasts of $X$ would then eventually grow along a **straight line with slope $\mu$**: an $I(1)$ process with drift, as in Case A of the handout. The confidence bands would widen at the same rate as under @eq-arima111, since the constant affects the point forecasts but not the $\psi$-weights.
+
+**The lesson:** whether to include a constant in a model for a differenced series is not a minor detail. With $d=1$, it is the difference between forecasting a flat level and forecasting a trend, and this matters more and more as the horizon grows.

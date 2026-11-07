@@ -1,0 +1,45 @@
+Applied Time Series Econometrics (ATSE)
+Copyright (c) 2026 Miguel A. Arranz
+
+This repository is released under two licences.
+
+1. Course materials: CC BY-NC-SA 4.0
+
+The text, figures, chapters, slides, Labs, capstone projects and other
+teaching materials (including everything in chapters/, slides/, typst/,
+labs/, capstones/, setup/, images/ and docs/) are licensed under the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+licence.
+
+You are free to share and adapt these materials, provided that you give
+appropriate credit, do not use them for commercial purposes, and
+distribute any adapted versions under the same licence.
+
+Full legal text: https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+2. Code: MIT
+
+Source code files (R scripts such as labs/r/*.R, Python modules, and
+the scripts/ folder) are licensed under the MIT Licence:
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Code inside the separate package repositories linked from resources/ is
+covered by the licence of each of those repositories.

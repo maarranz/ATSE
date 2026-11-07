@@ -1,0 +1,32 @@
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+# .Renviron holds the FRED API key: never commit it
+.Renviron
+
+# Python
+__pycache__/
+.ipynb_checkpoints/
+.venv/
+
+# Quarto
+.quarto/
+*_files/
+
+# Rendered output belongs only in docs/
+**/*.html
+**/*.pdf
+!docs/**/*.html
+!docs/**/*.pdf
+
+# OS
+.DS_Store
+
+/.quarto/
+**/*.quarto_ipynb
+
+# Lab working files (drafts and validation reports stay out of the repo)
+labs/**/*Draft*
+labs/**/*Validation*

@@ -1,0 +1,17 @@
+---
+title: "Python packages"
+---
+
+Install any of these in Colab or locally with `pip install git+<repository URL>`.
+
+## Forecasting-Tools
+
+Forecast evaluation and comparison.
+
+```bash
+pip install git+https://github.com/maarranz/Forecasting-Tools
+```
+
+[Repository](https://github.com/maarranz/Forecasting-Tools)
+
+<!-- TODO: add the ARIMA modelling package and ADL11, with their repository names -->

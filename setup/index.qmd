@@ -1,0 +1,17 @@
+---
+title: "Setup"
+---
+
+## R
+
+<!-- TODO: R installation, ATSE.Rproj, renv::restore(), Posit Cloud as a browser alternative -->
+
+## FRED API key
+
+<!-- TODO: getting a key and storing it in .Renviron as FRED_API_KEY -->
+
+## Python and Google Colab
+
+Each Python Lab opens directly from GitHub through its "Open in Colab" badge.
+To keep your work, use **File → Save a copy in Drive**.
+If Colab is not available with your university Google account, a personal Gmail account works with the same link.

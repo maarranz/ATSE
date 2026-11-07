@@ -1,0 +1,13 @@
+---
+title: "Chapters"
+listing:
+  contents: "*/*_T.qmd"
+  type: table
+  sort: "path"
+  fields: [title, description]
+  sort-ui: false
+  filter-ui: false
+---
+
+Self-study chapters, in course order. Each chapter folder also holds its worked
+exercises and solutions.
